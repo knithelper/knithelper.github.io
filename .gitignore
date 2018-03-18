@@ -1,0 +1,6 @@
+# OS Files
+.DS_Store
+._*
+*~
+thumbs.db
+desktop.ini
