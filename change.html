@@ -34,7 +34,7 @@
 <body>
   <h1>Knithelper</h1>
   <p><a href="index.html">Back</a></p>
-  <p>Change from <input id="from"/> stitches to <input id="to"/> stitches.</p>
+  <p>Change from <input type="number" min="1" max="1000" id="from"/> stitches to <input type="number" min="1" max="1000" id="to"/> stitches.</p>
   <div id="result"></div>
   <script>
     var numbers = function(a, b) {
@@ -73,9 +73,11 @@
     from.addEventListener('keyup', update)
     from.addEventListener('keydown', update)
     from.addEventListener('keypress', update)
+    from.addEventListener('change', update)
     to.addEventListener('keyup', update)
     to.addEventListener('keydown', update)
     to.addEventListener('keypress', update)
+    to.addEventListener('change', update)
     update()
   </script>
 </body>
