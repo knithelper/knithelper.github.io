@@ -59,7 +59,7 @@
       var a = parseInt(from.value)
       var b = parseInt(to.value)
       var html = ''
-      if (isFinite(a) && isFinite(b) && a > 0 && b > 0 && a != b) {
+      if (isFinite(a) && isFinite(b) && a > 0 && b > 0 && a <= 1000 && b <= 1000 && a <= 2 * b && b <= 2 * a && a != b) {
         var n = numbers(a, b)
         html += a > b ? '<p>Decrease the following stitches:</p>' : '<p>The following stitches are added:</p>'
         html += '<ul>'
