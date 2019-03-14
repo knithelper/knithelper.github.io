@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
+  <title>Knithelper</title>
+  <style type="text/css">
+    html {
+      overflow-y: scroll;
+    }
+    body {
+      max-width: 60em;
+      margin: 0 auto;
+      padding: 0 1em 1em;
+      font-family: 'Verdana', 'Tahoma', sans-serif;
+    }
+    input {
+      width: 3em;
+      font: inherit;
+    }
+    ul {
+      display: block;
+      overflow: auto;
+    }
+    li {
+      display: block;
+      float: left;
+      width: 4em;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Knithelper</h1>
+  <p><a href="index.html">Back</a></p>
+  <p>Change from <input id="from"/> stitches to <input id="to"/> stitches.</p>
+  <div id="result"></div>
+  <script>
+    var numbers = function(a, b) {
+      var i, r = []
+      // Swap a and b if a is larger.
+      if (a > b) {
+        i = b
+        b = a
+        a = i
+      }
+      for (i = 1; i <= b; ++i) {
+        if (Math.floor(i * a / b) == Math.floor((i + 1) * a / b)) {
+          r.push(i)
+        }
+      }
+      return r
+    }
+    var from = document.getElementById('from')
+    var to = document.getElementById('to')
+    var result = document.getElementById('result')
+    var update = function() {
+      var a = parseInt(from.value)
+      var b = parseInt(to.value)
+      var html = ''
+      if (isFinite(a) && isFinite(b) && a > 0 && b > 0 && a != b) {
+        var n = numbers(a, b)
+        html += a > b ? '<p>Decrease the following stitches:</p>' : '<p>The following stitches are added:</p>'
+        html += '<ul>'
+        for (var i = 0; i < n.length; ++i) {
+          html += '<li>' + n[i] + '</li>'
+        }
+        html += '</ul>'
+      }
+      result.innerHTML = html
+    }
+    from.addEventListener('keyup', update)
+    from.addEventListener('keydown', update)
+    from.addEventListener('keypress', update)
+    to.addEventListener('keyup', update)
+    to.addEventListener('keydown', update)
+    to.addEventListener('keypress', update)
+    update()
+  </script>
+</body>
+</html>
