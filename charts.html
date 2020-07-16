@@ -188,7 +188,7 @@
       })
       document.getElementById("source").value = JSON.stringify(pattern)
       document.getElementById("source").addEventListener("change", ev => {
-        pattern = sanitize(JSON.parse(this.value))
+        pattern = sanitize(JSON.parse(ev.target.value))
         draw()
       })
       document.getElementById("mirror-rl").addEventListener("click", ev => {
