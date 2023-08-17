@@ -349,7 +349,13 @@ const app = Vue.createApp({
       this.pattern.cols += 1
     },
     addStyle() {
-      this.pattern.styles.push({})
+      this.pattern.styles.push({
+        color: '',
+        frame: '',
+        mark: '',
+        legend: '',
+        opacity: 100
+      })
     },
     removeStyle(i) {
       this.pattern.styles.splice(i, 1)
