@@ -85,7 +85,7 @@ const render = pattern => {
   let w = cols * cellSize
   let h = rows * cellSize
   svg += '<svg xmlns="http://www.w3.org/2000/svg" width="' + (w + 2 * padding) + '" height="' + (h + 2 * padding) + '" viewBox="0 0 ' + (w + 2 * padding) + ' ' + (h + 2 * padding) + '">\n'
-  svg += '<g style="stroke:none;fill:none;stroke-width:1px;stroke-linecap:round;stroke-linejoin:round;font-family:\'' + htmlEscape(pattern['font']) + '\',sans-serif;">'
+  svg += '<g style="stroke:none;fill:none;stroke-width:1px;stroke-linecap:round;stroke-linejoin:round;font-family:\'' + htmlEscape(pattern['font']) + '\',sans-serif;">\n'
   svg += '<g>\n'
   for (let r = 0; r < rows; ++r) {
     for (let c = 0; c < cols; ++c) {
@@ -173,12 +173,32 @@ const downloadString = (text, fileType, fileName) => {
   setTimeout(() => URL.revokeObjectURL(a.href), 1500)
 }
 
+const debounce = (t, f) => {
+  let timeout = null
+  let values = null
+  return (...v) => {
+    values = v
+    if (timeout === null) {
+      timeout = setTimeout(() => {
+        if (values !== null) {
+          f(...values)
+          values = null
+        }
+        timeout = null
+      }, t)
+    }
+  }
+}
+
 const app = Vue.createApp({
   data() {
     return {
       down: false,
       style: 0,
-      pattern: loadPattern()
+      pattern: loadPattern(),
+      save: debounce(5000, json => {
+        localStorage.setItem(localStorageKey, json)
+      })
     }
   },
   computed: {
@@ -370,8 +390,7 @@ const app = Vue.createApp({
   },
   watch: {
     json(n) {
-      console.log('Saving')
-      localStorage.setItem(localStorageKey, n)
+      this.save(n)
     }
   },
   mounted() {
