@@ -22,6 +22,13 @@
       input {
         width: 4em;
       }
+      textarea {
+        width: 100%;
+        font-size: 0.7rem;
+        min-height: 10rem;
+        box-sizing: border-box;
+        resize: vertical;
+      }
       .main {
         display: grid;
         grid-template-columns: 30px min-content 30px;
@@ -62,8 +69,8 @@
       </div>
       <div>
         <div>Title <input style="width:10em;" v-model="pattern.title"/></div>
-        <div>Font <input style="width:10em;" v-model="pattern.font"/></div>
-        <div>Cell Size <input type="number" v-model.number="pattern['cell-size']"/></div>
+        <div>Font <input style="width:10em;" v-model="pattern.font"/> Size <input type="number" v-model.number="pattern.fontSize" min="5" max="100"/> Baseline <input type="number" v-model.number="pattern.baseLine" min="0" max="100"/></div>
+        <div>Cell Size <input type="number" v-model.number="pattern.cellSize" min="5" max="100"/></div>
         <div class="style" :class="{active: style == 0}">
           <button @click="style = 0">No Style</button>
         </div>
@@ -87,7 +94,7 @@
       <button @click="downloadJson">Download JSON</button>
       <button @click="loadJson">Load JSON</button>
     </div>
-    <pre><code>{{json}}</code></pre>
-    <pre><code>{{svg}}</code></pre>
+    <textarea :value="json" @change="loadJsonString($event.target.value)"></textarea>
+    <textarea :value="svg"></textarea>
   </body>
 </html>
