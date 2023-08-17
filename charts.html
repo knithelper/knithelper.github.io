@@ -15,265 +15,79 @@
         padding: 0 1em 1em;
         font-family: 'Verdana', 'Tahoma', sans-serif;
       }
+      pre {
+        white-space: pre-wrap;
+        font-size: 0.75em;
+      }
+      input {
+        width: 4em;
+      }
+      .main {
+        display: grid;
+        grid-template-columns: 30px min-content 30px;
+        grid-template-rows: 30px min-content 30px;
+        place-items: center;
+      }
+      .main button {
+        width: 20px;
+      }
+      .style {
+        border-left: 3px solid transparent;
+        padding: 2px;
+      }
+      .style.active {
+        border-left-color: #09d;
+      }
     </style>
+    <script defer src="vue.global.prod.js"></script>
+    <script defer src="charts.js"></script>
   </head>
   <body>
     <h1>Knithelper</h1>
     <p><a href="index.html">Back</a></p>
-    <div id="svg"></div>
-    <div><img id="legend" src=""/></div>
     <div>
-      Style:
-      <input type="text" id="style"/>
-      <input type="button" value="Fill" id="fill"/>
-      <input type="button" value="Mirror R/L" id="mirror-rl"/>
-      <input type="button" value="Rotate Left" id="rotate-left"/>
-      <input type="button" value="Rotate Right" id="rotate-right"/>
+      <div style="display: flex; flex-direction: row; align-items: center;">
+        <div class="main">
+          <div></div>
+          <div><button @click="removeTop()" :disabled="pattern.rows &lt; 2">-</button><button @click="addTop()">+</button></div>
+          <div></div>
+          <div><button @click="removeLeft()" :disabled="pattern.cols &lt; 2">-</button><br/><button @click="addLeft()">+</button></div>
+          <div v-html="svg" @mousedown.left.prevent="mousedown" @mousemove.prevent="mousemove"></div>
+          <div><button @click="removeRight()" :disabled="pattern.cols &lt; 2">-</button><br/><button @click="addRight()">+</button></div>
+          <div></div>
+          <div><button @click="removeBottom()" :disabled="pattern.rows &lt; 2">-</button><button @click="addBottom()">+</button></div>
+          <div></div>
+        </div>
+        <div><img :src="encodeSvg(legend)"/></div>
+      </div>
+      <div>
+        <div>Title <input style="width:10em;" v-model="pattern.title"/></div>
+        <div>Font <input style="width:10em;" v-model="pattern.font"/></div>
+        <div>Cell Size <input type="number" v-model.number="pattern['cell-size']"/></div>
+        <div class="style" :class="{active: style == 0}">
+          <button @click="style = 0">No Style</button>
+        </div>
+        <div v-for="(s, i) in pattern.styles" class="style" :class="{active: style == i + 1}">
+          <button @click="style = i + 1">Style {{i + 1}}</button> Color <input v-model="s.color"/> Frame <input v-model="s.frame"/> Mark <input v-model="s.mark"/> Legend <input v-model="s.legend"/> <button @click="swapStyles(i, i - 1)" :disabled="i &lt; 1">Up</button> <button @click="swapStyles(i, i + 1)" :disabled="i &gt; pattern.styles.length - 2">Down</button> <button @click="removeStyle(i)">Remove</button>
+        </div>
+        <div>
+          <button @click="addStyle()">Add Style</button>
+        </div>
+      </div>
     </div>
-    <div><textarea id="source" style="width: 500px; height: 200px;"></textarea></div>
-    <script type="text/javascript">
-      let pattern = {
-        "title": "",
-        "font": "Arial",
-        "cell-size": 15,
-        "cols": 30,
-        "rows": 20,
-        "styles": [
-          {"color": "#c12", "frame": "#8a2"},
-          {"color": "#c12", "mark": "/"},
-          {"color": "#c12", "mark": "\\"},
-          {"color": "#c12", "mark": "^"},
-          {"mark": "dot"},
-          {"color": "#999"}
-        ],
-        "cells": []
-      }
-      const sanitize = p => {
-        if (!p['title']) p['title'] = ''
-        p['title'] += ''
-        if (!p['font']) p['font'] = 'Arial'
-        p['font'] += ''
-        p['cell-size'] |= 0
-        if (p['cell-size'] < 1) p['cell-size'] = 15
-        p['cols'] |= 0
-        if (p['cols'] < 1) p['cols'] = 30
-        p['rows'] |= 0
-        if (p['rows'] < 1) p['rows'] = 20
-        const cells = []
-        for (let r = 0; r < p['rows']; ++r) {
-          if (!Array.isArray(p['cells'][r])) {
-            p['cells'][r] = []
-          }
-          cells[r] = []
-          for (let c = 0; c < p['cols']; ++c) {
-            cells[r][c] = p['cells'][r][c] | 0
-          }
-        }
-        p['cells'] = cells
-        return p
-      }
-      pattern = sanitize(pattern)
-      const htmlEscape = text => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-      const drawCell = (x, y, style, cellSize) => {
-        let svg = ''
-        if (style['color']) {
-          svg += '<path d="m' + x + ' ' + y + 'h' + cellSize + 'v' + cellSize + 'h-' + cellSize + 'z" style="fill:' + htmlEscape(style['color']) + ';"/>'
-        }
-        if (style['frame']) {
-          svg += '<path d="m' + (x + 1.5) + ' ' + (y + 1.5) + 'h' + (cellSize - 3) + 'v' + (cellSize - 3) + 'h' + (-cellSize + 3) + 'z" style="stroke:' + htmlEscape(style['frame']) + ';stroke-width:2px;stroke-linejoin:miter;"/>'
-        }
-        if (style['mark'] === '/') {
-          svg += '<path d="m' + x + ' ' + (y + cellSize) + 'l' + cellSize + '-' + cellSize + '" style="stroke:#000;"/>'
-        } else if (style['mark'] === '\\') {
-          svg += '<path d="m' + x + ' ' + y + 'l' + cellSize + ' ' + cellSize + '" style="stroke:#000;"/>'
-        } else if (style['mark'] === '^') {
-          svg += '<path d="m' + x + ' ' + (y + cellSize) + 'l' + (cellSize / 2) + '-' + cellSize + 'l' + (cellSize / 2) + ' ' + cellSize + '" style="stroke: #000;"/>'
-        } else if (style['mark'] === 'dot') {
-          svg += '<circle cx="' + (x + cellSize / 2) + '" cy="' + (y + cellSize / 2) + '" r="' + (cellSize / 5) + '" style="fill:#000;"/>'
-        } else if (style['mark']) {
-          svg += '<text style="fill:currentcolor;font-size:10px;" x="' + (x + cellSize / 2) + '" y="' + (y + cellSize / 2 + 3) + '" text-anchor="middle">' + htmlEscape(style['mark']) + '</text>'
-        }
-        return svg
-      }
-      const encodeSvg = svg => 'data:image/svg+xml;charset=utf-8;base64,' + btoa(encodeURIComponent(svg).replace(/%([0-9A-F]{2})/g, (match, p1) => String.fromCharCode(parseInt(p1, 16))))
-      const draw = () => {
-        const cellSize = pattern['cell-size']
-        let padding = 3 * cellSize + 0.5
-        let text = true
-        if (pattern['no-text']) {
-          padding = 0.5
-          text = false
-        }
-        let svg = ''
-        let legend = ''
-        let cols = pattern['cols']
-        let rows = pattern['rows']
-        let w = cols * cellSize
-        let h = rows * cellSize
-        svg += '<svg xmlns="http://www.w3.org/2000/svg" width="' + (w + 2 * padding) + '" height="' + (h + 2 * padding) + '" viewBox="0 0 ' + (w + 2 * padding) + ' ' + (h + 2 * padding) + '">'
-        svg += '<g style="stroke:none;fill:none;stroke-width:1px;stroke-linecap:round;stroke-linejoin:round;font-family:\'' + htmlEscape(pattern['font']) + '\',sans-serif;">'
-        svg += '<g>\n'
-        for (let r = 0; r < rows; ++r) {
-          for (let c = 0; c < cols; ++c) {
-            let s = pattern['cells'][r][c]
-            if (s > 0 && s <= pattern['styles'].length) {
-              let style = pattern['styles'][s - 1]
-              let x = padding + c * cellSize
-              let y = padding + r * cellSize
-              svg += drawCell(x, y, style, cellSize)
-            }
-          }
-        }
-        svg += '</g>\n'
-        svg += '<g style="stroke:currentcolor;stroke-linejoin:miter;">\n'
-        for (let x = padding + cellSize; x <= (cols - 1) * cellSize + padding; x += cellSize) {
-          svg += '<path d="m' + x + ' ' + padding + 'v' + h + '"/>\n'
-        }
-        for (let y = padding + cellSize; y <= (rows - 1) * cellSize + padding; y += cellSize) {
-          svg += '<path d="m' + padding + ' ' + y + 'h' + w + '"/>\n'
-        }
-        svg += '<path d="m' + padding + ' ' + padding + 'h' + w + 'v' + h + 'h-' + w + 'z"/>\n'
-        svg += '</g>\n'
-        svg += '<g style="fill:currentcolor;font-size:10px;">\n'
-        for (let i = 0; i < rows; ++i) {
-          let x = padding + w + 4
-          let y = padding + (i + 0.5) * cellSize + 3
-          if (text) svg += '<text x="' + x + '" y="' + y + '">' + (rows - i) + '</text>\n'
-        }
-        for (let i = 0; i < cols; ++i) {
-          let x = padding + (i + 0.5) * cellSize + 3
-          let y = padding + h + 4
-          if (text) svg += '<text x="' + x + '" y="' + y + '" transform="rotate(-90 ' + x + ',' + y + ')" text-anchor="end">' + (cols - i) + '</text>\n'
-        }
-        svg += '</g>\n'
-        if (pattern['title'] != '') {
-          if (text) svg += '<text style="fill:currentcolor;font-size:15px;font-weight:bold;" x="' + (padding + w / 2) + '" y="' + (padding - 7) + '" text-anchor="middle">' + htmlEscape(pattern['title']) + '</text>\n'
-        }
-        svg += '</g>\n'
-        svg += '</svg>'
-        document.getElementById("svg").innerHTML = svg
-        let numStyles = 0
-        for (let i = 0; i < pattern['styles'].length; ++i) {
-          if (pattern['styles'][i]['legend']) {
-            numStyles += 1
-          }
-        }
-        legend += '<svg xmlns="http://www.w3.org/2000/svg" width="' + (2 * padding + 100) + '" height="' + ((numStyles * 1.5 - 0.5) * cellSize + 2 * padding) + '">'
-        legend += '<style type="text/css">'
-        legend += "*{stroke:none;fill:none;stroke-width:1px;stroke-linecap:round;stroke-linejoin:round;font-family:'" + htmlEscape(pattern['font']) + "',sans-serif;}"
-        legend += "text{fill:#000;}"
-        legend += '</style>'
-        if (text) legend += '<text style="font-size:15px;font-weight:bold;" x="' + padding + '" y="' + (padding - 7) + '">Legend</text>'
-        let ypos = padding
-        for (let i = 0; i < pattern['styles'].length; ++i) {
-          if (pattern['styles'][i]['legend']) {
-            legend += drawCell(padding, ypos, pattern['styles'][i], cellSize)
-            legend += '<path d="m' + padding + ' ' + ypos + 'h' + cellSize + 'v' + cellSize + 'h-' + cellSize + 'z" style="stroke:#000;"/>'
-            legend += '<text style="font-size:10px;" x="' + (padding + cellSize + 4) + '" y="' + (ypos + cellSize / 2 + 3) + '">' + htmlEscape(pattern['styles'][i]['legend']) + '</text>'
-            ypos += 1.5 * cellSize
-          }
-        }
-        legend += '</svg>'
-        document.getElementById("legend").setAttribute("src", encodeSvg(legend))
-      }
-      draw()
-      let down = false
-      document.getElementById("svg").addEventListener("mousedown", ev => {
-        let cellSize = pattern['cell-size']
-        let padding = 3 * cellSize
-        let x = Math.floor((ev.offsetX - padding) / cellSize)
-        let y = Math.floor((ev.offsetY - padding) / cellSize)
-        if (x >= 0 && x < pattern['cols'] && y >= 0 && y < pattern['rows']) {
-          pattern['cells'][y][x] = document.getElementById("style").value | 0
-        }
-        document.getElementById("source").value = JSON.stringify(pattern)
-        draw()
-        down = true
-      })
-      document.getElementById("svg").addEventListener("mousemove", ev => {
-        if (down) {
-          let cellSize = pattern['cell-size']
-          let padding = 3 * cellSize
-          let x = Math.floor((ev.offsetX - padding) / cellSize)
-          let y = Math.floor((ev.offsetY - padding) / cellSize)
-          if (x >= 0 && x < pattern['cols'] && y >= 0 && y < pattern['rows']) {
-            pattern['cells'][y][x] = document.getElementById("style").value | 0
-          }
-          document.getElementById("source").value = JSON.stringify(pattern)
-          draw()
-        }
-      })
-      window.addEventListener('mouseup', () => {
-        down = false
-      })
-      document.getElementById("source").value = JSON.stringify(pattern)
-      document.getElementById("source").addEventListener("change", ev => {
-        pattern = sanitize(JSON.parse(ev.target.value))
-        draw()
-      })
-      document.getElementById("mirror-rl").addEventListener("click", ev => {
-        for (let r = 0; r < pattern['rows']; ++r) {
-          for (let c = 0; c < (pattern['cols'] - 1) / 2; ++c) {
-            let t = pattern['cells'][r][c]
-            pattern['cells'][r][c] = pattern['cells'][r][pattern['cols'] - c - 1]
-            pattern['cells'][r][pattern['cols'] - c - 1] = t
-          }
-        }
-        document.getElementById("source").value = JSON.stringify(pattern)
-        draw()
-      })
-      document.getElementById("rotate-left").addEventListener("click", ev => {
-        const rows = pattern.rows
-        const cols = pattern.cols
-        const cells = []
-        for (let r = 0; r < cols; ++r) {
-          cells[r] = []
-        }
-        for (let r = 0; r < rows; ++r) {
-          for (let c = 0; c < cols; ++c) {
-            cells[c][r] = pattern.cells[r][cols - 1 - c]
-          }
-        }
-        pattern.cells = cells
-        pattern.rows = cols
-        pattern.cols = rows
-        document.getElementById("source").value = JSON.stringify(pattern)
-        draw()
-      })
-      document.getElementById("rotate-right").addEventListener("click", ev => {
-        const rows = pattern.rows
-        const cols = pattern.cols
-        const cells = []
-        for (let r = 0; r < cols; ++r) {
-          cells[r] = []
-        }
-        for (let r = 0; r < rows; ++r) {
-          for (let c = 0; c < cols; ++c) {
-            cells[c][r] = pattern.cells[rows - 1 - r][c]
-          }
-        }
-        pattern.cells = cells
-        pattern.rows = cols
-        pattern.cols = rows
-        document.getElementById("source").value = JSON.stringify(pattern)
-        draw()
-      })
-      document.getElementById("fill").addEventListener("click", ev => {
-        let v = document.getElementById("style").value | 0
-        for (let r = 0; r < pattern['rows']; ++r) {
-          for (let c = 0; c < pattern['cols']; ++c) {
-            pattern['cells'][r][c] = v
-          }
-        }
-        document.getElementById("source").value = JSON.stringify(pattern)
-        draw()
-      })
-      window.addEventListener("keydown", ev => {
-        const st = document.getElementById("style")
-        if (/^[0-9]$/.test(ev.key)) {
-          st.value = ev.key
-        }
-      })
-    </script>
+    <div>
+      <button @click="fill">Fill</button>
+      <button @click="mirrorRL">Mirror R/L</button>
+      <button @click="rotateLeft">Rotate Left</button>
+      <button @click="rotateRight">Rotate Right</button>
+    </div>
+    <div>
+      <button @click="downloadSvg">Download SVG</button>
+      <button @click="downloadLegend">Download Legend</button>
+      <button @click="downloadJson">Download JSON</button>
+      <button @click="loadJson">Load JSON</button>
+    </div>
+    <pre><code>{{json}}</code></pre>
+    <pre><code>{{svg}}</code></pre>
   </body>
 </html>
