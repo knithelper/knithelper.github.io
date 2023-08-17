@@ -68,7 +68,7 @@
           <button @click="style = 0">No Style</button>
         </div>
         <div v-for="(s, i) in pattern.styles" class="style" :class="{active: style == i + 1}">
-          <button @click="style = i + 1">Style {{i + 1}}</button> Color <input v-model="s.color"/> Frame <input v-model="s.frame"/> Mark <input v-model="s.mark"/> Legend <input v-model="s.legend"/> <button @click="swapStyles(i, i - 1)" :disabled="i &lt; 1">Up</button> <button @click="swapStyles(i, i + 1)" :disabled="i &gt; pattern.styles.length - 2">Down</button> <button @click="removeStyle(i)">Remove</button>
+          <button @click="style = i + 1">Style {{i + 1}}</button> Color <input v-model="s.color"/> Frame <input v-model="s.frame"/> Mark <input v-model="s.mark"/> Legend <input v-model="s.legend"/> Opacity <input type="number" v-model.number="s.opacity" min="0" max="100"/> <button @click="swapStyles(i, i - 1)" :disabled="i &lt; 1">Up</button> <button @click="swapStyles(i, i + 1)" :disabled="i &gt; pattern.styles.length - 2">Down</button> <button @click="removeStyle(i)">Remove</button>
         </div>
         <div>
           <button @click="addStyle()">Add Style</button>

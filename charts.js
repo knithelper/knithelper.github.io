@@ -16,28 +16,45 @@ const defaultPattern = {
   "cells": []
 }
 const sanitize = p => {
-  if (!p['title']) p['title'] = ''
-  p['title'] += ''
-  if (!p['font']) p['font'] = 'Arial'
-  p['font'] += ''
-  p['cell-size'] |= 0
-  if (p['cell-size'] < 1) p['cell-size'] = 15
-  p['cols'] |= 0
-  if (p['cols'] < 1) p['cols'] = 30
-  p['rows'] |= 0
-  if (p['rows'] < 1) p['rows'] = 20
-  const cells = []
-  for (let r = 0; r < p['rows']; ++r) {
-    if (!Array.isArray(p['cells'][r])) {
-      p['cells'][r] = []
-    }
-    cells[r] = []
-    for (let c = 0; c < p['cols']; ++c) {
-      cells[r][c] = p['cells'][r][c] | 0
+  const s = {
+    title: '',
+    font: '',
+    'cell-size': 15,
+    rows: 20,
+    cols: 30,
+    styles: [],
+    cells: []
+  }
+  if (typeof p.title === 'string') s.title = p.title
+  if (typeof p.font === 'string') s.font = p.font
+  if (typeof p['cell-size'] === 'number' && p['cell-size'] >= 5 && p['cell-size'] < 100) s['cell-size'] = p['cell-size']
+  if (typeof p.rows === 'number' && p.rows >= 1) s.rows = Math.round(p.rows)
+  if (typeof p.cols === 'number' && p.cols >= 1) s.cols = Math.round(p.cols)
+  if (Array.isArray(p.styles)) {
+    for (let i = 0; i < p.styles.length; ++i) {
+      const style = {
+        color: '',
+        frame: '',
+        mark: '',
+        legend: '',
+        opacity: 100
+      }
+      if (typeof p.styles[i].color === 'string') style.color = p.styles[i].color
+      if (typeof p.styles[i].frame === 'string') style.frame = p.styles[i].frame
+      if (typeof p.styles[i].mark === 'string') style.mark = p.styles[i].mark
+      if (typeof p.styles[i].legend === 'string') style.legend = p.styles[i].legend
+      if (typeof p.styles[i].opacity === 'number' && p.styles[i].opacity >= 0 && p.styles[i].opacity <= 100) style.opacity = Math.round(p.styles[i].opacity)
+      s.styles.push(style)
     }
   }
-  p['cells'] = cells
-  return p
+  for (let r = 0; r < s.rows; ++r) {
+    let row = Array.isArray(p.cells[r]) ? p.cells[r] : []
+    s.cells[r] = []
+    for (let c = 0; c < s.cols; ++c) {
+      s.cells[r][c] = row[c] | 0
+    }
+  }
+  return s
 }
 
 const htmlEscape = text => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -50,13 +67,15 @@ const loadPattern = () => {
   }
 }
 
+const opacity = n => n < 100 ? 'opacity:' + (n / 100) + ';' : ''
+
 const renderCell = (x, y, style, cellSize) => {
   let svg = ''
   if (style['color']) {
-    svg += '<path d="m' + x + ' ' + y + 'h' + cellSize + 'v' + cellSize + 'h-' + cellSize + 'z" style="fill:' + htmlEscape(style['color']) + ';"/>\n'
+    svg += '<path d="m' + x + ' ' + y + 'h' + cellSize + 'v' + cellSize + 'h-' + cellSize + 'z" style="fill:' + htmlEscape(style['color']) + ';' + opacity(style.opacity) + '"/>\n'
   }
   if (style['frame']) {
-    svg += '<path d="m' + (x + 1.5) + ' ' + (y + 1.5) + 'h' + (cellSize - 3) + 'v' + (cellSize - 3) + 'h' + (-cellSize + 3) + 'z" style="stroke:' + htmlEscape(style['frame']) + ';stroke-width:2px;stroke-linejoin:miter;"/>\n'
+    svg += '<path d="m' + (x + 1.5) + ' ' + (y + 1.5) + 'h' + (cellSize - 3) + 'v' + (cellSize - 3) + 'h' + (-cellSize + 3) + 'z" style="stroke:' + htmlEscape(style['frame']) + ';stroke-width:2px;stroke-linejoin:miter;' + opacity(style.opacity) + '"/>\n'
   }
   if (style['mark'] === '/') {
     svg += '<path d="m' + x + ' ' + (y + cellSize) + 'l' + cellSize + '-' + cellSize + '" style="stroke:#000;"/>\n'
