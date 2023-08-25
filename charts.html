@@ -22,6 +22,9 @@
       input {
         width: 4em;
       }
+      input[type=checkbox] {
+        width: auto;
+      }
       textarea {
         width: 100%;
         font-size: 0.7rem;
@@ -70,6 +73,7 @@
       <div>
         <div>Title <input style="width:10em;" v-model="pattern.title"/></div>
         <div>Font <input style="width:10em;" v-model="pattern.font"/> Size <input type="number" v-model.number="pattern.fontSize" min="5" max="100"/> Baseline <input type="number" v-model.number="pattern.baseLine" min="0" max="100"/></div>
+        <div><input type="checkbox" v-model="pattern.rotateNumbers"/> Rotate Numbers</div>
         <div>Cell Size <input type="number" v-model.number="pattern.cellSize" min="5" max="100"/></div>
         <div class="style" :class="{active: style == 0}">
           <button @click="style = 0">No Style</button>

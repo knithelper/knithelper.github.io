@@ -22,6 +22,7 @@ const sanitize = p => {
     cellSize: 15,
     fontSize: 10,
     baseLine: 40,
+    rotateNumbers: true,
     rows: 20,
     cols: 30,
     styles: [],
@@ -33,6 +34,7 @@ const sanitize = p => {
   if (typeof p.cellSize === 'number' && p.cellSize >= 5 && p.cellSize <= 100) s.cellSize = p.cellSize
   if (typeof p.fontSize === 'number' && p.fontSize >= 5 && p.fontSize <= 100) s.fontSize = p.fontSize
   if (typeof p.baseLine === 'number' && p.baseLine >= 0 && p.baseLine <= 100) s.baseLine = p.baseLine
+  if (typeof p.rotateNumbers === 'boolean') s.rotateNumbers = p.rotateNumbers
   if (typeof p.rows === 'number' && p.rows >= 1) s.rows = Math.round(p.rows)
   if (typeof p.cols === 'number' && p.cols >= 1) s.cols = Math.round(p.cols)
   if (Array.isArray(p.styles)) {
@@ -64,6 +66,8 @@ const sanitize = p => {
 
 const htmlEscape = text => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
+const round = n => +n.toFixed(2)
+
 const loadPattern = () => {
   try {
     return sanitize(JSON.parse(localStorage.getItem(localStorageKey)))
@@ -74,12 +78,14 @@ const loadPattern = () => {
 
 const opacity = n => n < 100 ? 'opacity:' + (n / 100) + ';' : ''
 
-const renderCell = (x, y, style, pattern) => {
+const renderCell = (x, y, style, pattern, legend = false) => {
   let cellSize = pattern.cellSize
   let baseLine = pattern.fontSize * pattern.baseLine / 100
   let svg = ''
-  if (style['color']) {
-    svg += '<path d="m' + x + ' ' + y + 'h' + cellSize + 'v' + cellSize + 'h-' + cellSize + 'z" style="fill:' + htmlEscape(style['color']) + ';' + opacity(style.opacity) + '"/>\n'
+  if (legend) {
+    if (style['color']) {
+      svg += '<path d="m' + x + ' ' + y + 'h' + cellSize + 'v' + cellSize + 'h-' + cellSize + 'z" style="fill:' + htmlEscape(style['color']) + ';' + opacity(style.opacity) + '"/>\n'
+    }
   }
   if (style['frame']) {
     svg += '<path d="m' + (x + 1.5) + ' ' + (y + 1.5) + 'h' + (cellSize - 3) + 'v' + (cellSize - 3) + 'h' + (-cellSize + 3) + 'z" style="stroke:' + htmlEscape(style['frame']) + ';stroke-width:2px;stroke-linejoin:miter;' + opacity(style.opacity) + '"/>\n'
@@ -97,6 +103,23 @@ const renderCell = (x, y, style, pattern) => {
   }
   return svg
 }
+const renderGrid = (x, y, cells, cellSize) => {
+  let ox = 0, oy = 0
+  let d = ''
+  for (let r = 0; r < cells.length; ++r) {
+    for (let c = 0; c < cells[r].length; ++c) {
+      if (cells[r][c] > 0) {
+        let nx = x + c * cellSize
+        let ny = y + r * cellSize
+        d += 'm' + (nx - ox) + ' ' + (ny - oy) + 'h' + cellSize + 'v' + cellSize + 'h-' + cellSize + 'z'
+        ox = nx
+        oy = ny
+      }
+    }
+  }
+  if (d) d = '<path style="fill:none;stroke:currentcolor;" d="' + d + '"/>\n'
+  return d
+}
 const render = pattern => {
   const cellSize = pattern.cellSize
   let padding = 3 * cellSize + 0.5
@@ -111,9 +134,27 @@ const render = pattern => {
   let w = cols * cellSize
   let h = rows * cellSize
   const baseLine = pattern.fontSize * pattern.baseLine / 100
-  svg += '<svg xmlns="http://www.w3.org/2000/svg" width="' + (w + 2 * padding) + '" height="' + (h + 2 * padding) + '" viewBox="0 0 ' + (w + 2 * padding) + ' ' + (h + 2 * padding) + '">\n'
-  svg += '<g style="stroke:none;fill:none;stroke-width:1px;stroke-linecap:round;stroke-linejoin:round;font-family:\'' + htmlEscape(pattern['font']) + '\',sans-serif;">\n'
-  svg += '<g>\n'
+  svg += '<svg xmlns="http://www.w3.org/2000/svg" width="' + (w + 2 * padding) + '" height="' + (h + 2 * padding) + '" viewBox="0 0 ' + (w + 2 * padding) + ' ' + (h + 2 * padding) + '" style="max-width:' + (w + 2 * padding) + 'px;' + (pattern.font ? 'font-family:\'' + htmlEscape(pattern.font) + '\',sans-serif;' : '') + '">\n'
+  for (let i = 0; i < pattern.styles.length; ++i) {
+    let style = pattern.styles[i]
+    if (style.color) {
+      let d = ''
+      let dx = 0
+      let dy = 0
+      for (let r = 0; r < rows; ++r) {
+        for (let c = 0; c < cols; ++c) {
+          if (pattern.cells[r][c] === (i + 1)) {
+            let x = padding + c * cellSize
+            let y = padding + r * cellSize
+            d += 'm' + (x - dx) + ' ' + (y - dy) + 'h' + cellSize + 'v' + cellSize + 'h-' + cellSize + 'z'
+            dx = x
+            dy = y
+          }
+        }
+      }
+      if (d) svg += '<path style="fill:' + htmlEscape(style['color']) + ';' + opacity(style.opacity) + '" d="' + d + '"/>\n'
+    }
+  }
   for (let r = 0; r < rows; ++r) {
     for (let c = 0; c < cols; ++c) {
       let s = pattern['cells'][r][c]
@@ -125,30 +166,28 @@ const render = pattern => {
       }
     }
   }
-  svg += '</g>\n'
-  svg += '<g style="stroke:currentcolor;stroke-linejoin:miter;">\n'
-  for (let x = padding + cellSize; x <= (cols - 1) * cellSize + padding; x += cellSize) {
-    svg += '<path d="m' + x + ' ' + padding + 'v' + h + '"/>\n'
-  }
-  for (let y = padding + cellSize; y <= (rows - 1) * cellSize + padding; y += cellSize) {
-    svg += '<path d="m' + padding + ' ' + y + 'h' + w + '"/>\n'
-  }
-  svg += '<path d="m' + padding + ' ' + padding + 'h' + w + 'v' + h + 'h-' + w + 'z"/>\n'
-  svg += '</g>\n'
-  svg += '<g style="fill:currentcolor;font-size:' + pattern.fontSize + 'px;">\n'
-  for (let i = 0; i < rows; ++i) {
-    let x = padding + w + pattern.fontSize / 4
-    let y = padding + (i + 0.5) * cellSize + baseLine
-    if (text) svg += '<text x="' + x + '" y="' + y + '">' + (rows - i) + '</text>\n'
-  }
-  for (let i = 0; i < cols; ++i) {
-    let x = padding + (i + 0.5) * cellSize + baseLine
-    let y = padding + h + pattern.fontSize / 4
-    if (text) svg += '<text x="' + x + '" y="' + y + '" transform="rotate(-90 ' + x + ',' + y + ')" text-anchor="end">' + (cols - i) + '</text>\n'
-  }
-  svg += '</g>\n'
+  svg += renderGrid(padding, padding, pattern.cells, cellSize)
   if (pattern['title'] != '') {
     if (text) svg += '<text style="fill:currentcolor;font-size:' + (pattern.fontSize * 1.5) + 'px;font-weight:bold;" x="' + (padding + w / 2) + '" y="' + (padding - cellSize * 0.5) + '" text-anchor="middle">' + htmlEscape(pattern['title']) + '</text>\n'
+  }
+  svg += '<g style="fill:currentcolor;font-size:' + pattern.fontSize + 'px;">\n'
+  if (text) {
+    for (let i = 0; i < rows; ++i) {
+      let x = padding + w + pattern.fontSize / 4
+      let y = padding + (i + 0.5) * cellSize + baseLine
+      svg += '<text x="' + x + '" y="' + y + '">' + (rows - i) + '</text>\n'
+    }
+    for (let i = 0; i < cols; ++i) {
+      if (pattern.rotateNumbers) {
+        let x = padding + (i + 0.5) * cellSize + baseLine
+        let y = padding + h + pattern.fontSize / 4
+        svg += '<text x="' + round(x) + '" y="' + round(y) + '" transform="rotate(-90 ' + x + ',' + y + ')" text-anchor="end">' + (cols - i) + '</text>\n'
+      } else {
+        let x = padding + (i + 0.5) * cellSize
+        let y = padding + h + pattern.fontSize * 0.6 + baseLine
+        svg += '<text x="' + round(x) + '" y="' + round(y) + '" text-anchor="middle">' + (cols - i) + '</text>\n'
+      }
+    }
   }
   svg += '</g>\n'
   svg += '</svg>'
@@ -178,7 +217,7 @@ const renderLegend = pattern => {
   let ypos = padding
   for (let i = 0; i < pattern['styles'].length; ++i) {
     if (pattern['styles'][i]['legend']) {
-      legend += renderCell(padding, ypos, pattern['styles'][i], pattern)
+      legend += renderCell(padding, ypos, pattern['styles'][i], pattern, true)
       legend += '<path d="m' + padding + ' ' + ypos + 'h' + cellSize + 'v' + cellSize + 'h-' + cellSize + 'z" style="stroke:currentcolor;"/>'
       legend += '<text style="font-size:' + pattern.fontSize + 'px;" x="' + (padding + cellSize + 4) + '" y="' + (ypos + cellSize / 2 + baseLine) + '">' + htmlEscape(pattern['styles'][i]['legend']) + '</text>'
       ypos += 1.5 * cellSize
